@@ -18,17 +18,19 @@ class MailClient
 {
 private:
     wstring directoryPath;
-    bool ReadHeader(const wstring& filepath, MailboxMeta& meta);
-    
+    bool ReadMailboxMeta(const wstring& filepath, MailboxMeta& meta);
+    bool WriteMailboxMeta(HANDLE hFile, const MailboxMeta& meta);
+    wstring getFilePath(const wstring& mailboxName) { return directoryPath + L"\\" + mailboxName + FILE_EXTENSION; }
 public:
-    MailClient(const wstring& dir) : directoryPath(dir) {
-        CreateDirectoryW(directoryPath.c_str(), NULL);
-    }
+	const wstring FILE_EXTENSION = L"dat";
+    MailClient(const wstring& dir) : directoryPath(dir) { CreateDirectoryW(directoryPath.c_str(), NULL); }
+    bool MailboxExists(const wstring& name);
     bool CreateMailbox(const wstring& name, DWORD maxSize);
-    bool AddMessage(const wstring& name, const string& body);
-    string ReadMessage(const wstring& name, DWORD targetIndex, bool deleteAfterReading);
-    bool DeleteMessage(const wstring& name, DWORD targetIndex);
-    bool DeleteAllMessages(const wstring& name); 
-    DWORD GetMessageCount(const wstring& name);
-    DWORD GetTotalMailboxes();
+    bool AddMessage(const wstring& mailboxName, const string& body);
+    string ReadMessage(const wstring& mailboxName, DWORD targetIndex, bool deleteAfterReading);
+    bool DeleteMessage(const wstring& mailboxName, DWORD targetIndex);
+    bool DeleteAllMessages(const wstring& mailboxName);
+    DWORD GetMessageCount(const wstring& mailboxName);
+    DWORD GetTotalMailboxesCount(); 
+    vector<wstring> GetAllMailboxNames();
 };

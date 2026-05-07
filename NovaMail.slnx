@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="NovaMail.vcxproj" />
+  <Project Path="NovaMail.vcxproj" Id="a290c9c5-6f83-487d-bc59-fd84d4e7f5eb" />
 </Solution>
