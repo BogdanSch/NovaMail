@@ -33,6 +33,18 @@ bool MailClient::MailboxExists(const wstring& name)
     return ReadMailboxMeta(filepath, meta);
 }
 
+bool MailClient::MailboxEmpty(const wstring& name)
+{
+    wstring filepath = getFilePath(name);
+    MailboxMeta meta;
+    if (!ReadMailboxMeta(filepath, meta)) {
+        printf("Error: Failed to read the mailbox data for checking mailbox!\n");
+        return true;
+    }
+
+	return meta.messageCount == 0;
+}
+
 bool MailClient::CreateMailbox(const wstring& name, DWORD maxSize)
 {
     wstring filepath = getFilePath(name);
@@ -71,7 +83,7 @@ bool MailClient::AddMessage(const wstring& mailboxName, const string& body)
 
     MessageMeta messageMeta = { (DWORD)body.length() };
     WriteFile(hFile, &messageMeta, sizeof(MessageMeta), &bytesRW, NULL);
-    WriteFile(hFile, body.c_str(), sizeof(body), &bytesRW, NULL);
+    WriteFile(hFile, body.c_str(), body.length(), &bytesRW, NULL);
 
     meta.messageCount++;
     meta.totalSize = newTotalSize;
@@ -83,7 +95,6 @@ bool MailClient::AddMessage(const wstring& mailboxName, const string& body)
 
 string MailClient::ReadMessage(const wstring& mailboxName, DWORD targetIndex, bool deleteAfterReading)
 {
-
     wstring filepath = getFilePath(mailboxName);
     HANDLE hFile = CreateFileW(filepath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) return "";
@@ -122,6 +133,28 @@ string MailClient::ReadMessage(const wstring& mailboxName, DWORD targetIndex, bo
     return result;
 }
 
+vector<string> MailClient::GetMessagePreviews(const wstring& mailboxName)
+{
+	wstring filepath = getFilePath(mailboxName);
+    MailboxMeta meta;
+    if (!ReadMailboxMeta(filepath, meta)) {
+        printf("Error: Failed to read the mailbox data for getting message previews!\n");
+        return {};
+	}
+
+    vector<string> previews = {};
+
+	for (int i = 0; i < meta.messageCount; i++) {
+        string message = ReadMessage(mailboxName, i, false);
+        if (message.length() > 20) {
+            message = message.substr(0, PREVIEW_TEXT_SIZE) + "...";
+        }
+        previews.push_back(message);
+    }
+
+    return previews;
+}
+
 bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
 {
 	if (targetIndex < 0) {
@@ -130,7 +163,7 @@ bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
     }
     wstring filepath = getFilePath(mailboxName);
 
-    HANDLE hFile = CreateFileW(filepath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile = CreateFileW(filepath.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) 
         return false;
 
@@ -158,7 +191,6 @@ bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
         }
 		delete[] buffer;
     }
-    CloseHandle(hFile);
 
 	meta.messageCount = 0;
     meta.totalSize = 0;
@@ -169,6 +201,7 @@ bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
         AddMessage(mailboxName, message);
     }
 
+    CloseHandle(hFile);
     return true;
 }
 
@@ -201,7 +234,7 @@ DWORD MailClient::GetTotalMailboxesCount()
 
     HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findFileData);
 	if (hFind == INVALID_HANDLE_VALUE) {
-        printf("Error: Failed to access the directory for counting mailboxes!\n");
+        //printf("Error: Failed to access the directory for counting mailboxes!\n");
         return 0;
     }
 
@@ -224,14 +257,15 @@ vector<wstring> MailClient::GetAllMailboxNames()
 
     HANDLE hFind = FindFirstFileW(searchPath.c_str(), &findFileData);
     if (hFind == INVALID_HANDLE_VALUE) {
-        printf("Error: Failed to access the directory for counting mailboxes!\n");
+        //printf("Error: Failed to access the directory for retrieving mailboxes!\n");
         return {};
     }
 
     vector<wstring> mailboxNames = {};
     do {
         if (!(findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			mailboxNames.push_back(wstring(findFileData.cFileName));
+			wstring fileName(findFileData.cFileName);
+			mailboxNames.push_back(fileName.substr(0, fileName.length() - (1 + FILE_EXTENSION.length())));
         }
     } while (FindNextFileW(hFind, &findFileData) != false);
 

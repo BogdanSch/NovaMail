@@ -3,110 +3,182 @@
 #include <vector>
 #include "MailClient.h"
 
-using std::wcout, std::wcin, std::cout, std::cin, std::endl, std::string, std::to_string, std::wstring, std::getline, std::vector;
+using std::wcout, std::wcin, std::cout, std::cin, std::endl, std::string, std::to_string, std::wstring, std::getline, std::vector, std::stoi;
 
 const int MAX_MAILBOX_SIZE = 1024;
 const wstring MAILBOX_DIRECTORY = L"nova-mail";
+
+static int tryParseOption() {
+	int option = -1;
+	string input;
+	getline(cin, input);
+
+	try {
+		option = stoi(input);
+	}
+	catch (const std::exception&) {
+		option = -1;
+	}
+
+	return option;
+}
+
+static void printMessagePreviews(const vector<string>& previews)
+{
+	if (previews.size() == 0) {
+		cout << "The mailbox is empty!" << endl;
+		return;
+	}
+	cout << "Messages in this mailbox:" << endl;
+	for (size_t i = 0; i < previews.size(); i++) {
+		cout << "[" << i << "]" << ": " << previews[i] << endl;
+	}
+}
+
+static void printMailboxList(const vector<wstring>& mailboxNames)
+{
+	if (mailboxNames.size() == 0) {
+		cout << "No mailboxes found. Please create a new mailbox to get started!" << endl;
+		return;
+	}
+	cout << "Available mailboxes:" << endl;
+	for (const wstring& name : mailboxNames) {
+		wcout << L"- " << name << endl;
+	}
+}
 
 static void displayWelcomeMessage()
 {
 	cout << "Welcome to Nova Mail!" << endl;
 	cout << "Your personal mailbox management system." << endl;
 	cout << "Use numbers to choose an option and then press enter.\n" << endl;
-	cout << "---------------------------------------\n" << endl;
+	cout << "---------------------------------------" << endl;
 }
 
 static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 {
-	wcout << "Mailbox: " << mailboxName << endl;
-	cout << "Options:\n0: Add a new message.\n1: Read a message.\n2: Delete a message.\n3: Delete all messages.\n4: Back to main menu.\n" << endl;
+	cout << "\n---------------------------------------\n" << endl;
+	wcout << L"Mailbox '" << mailboxName << L"' opened successfully!";
 
-	int option;
-	cin >> option;
-	cin.ignore();
+	bool stayInMailboxMenu = true;
+	while (stayInMailboxMenu) {
+		cout << endl;
+		vector<string> previews = client.GetMessagePreviews(mailboxName);
+		printMessagePreviews(previews);
+		cout << endl;
 
-	switch(option) {
-		case 0: {
-			cout << "Enter the message body: " << endl;
-			string body;
-			getline(cin, body);
-			if (client.AddMessage(mailboxName, body)) {
-				cout << "Message added successfully!" << endl;
-			}
-			else {
-				cout << "Failed to add the message!" << endl;
-			}
-			break;
-		}
-		case 1: {
-			cout << "Enter the index of the message to read: " << endl;
-			DWORD index;
-			cin >> index;
-			cin.ignore();
-			string message = client.ReadMessage(mailboxName, index, false);
-			if (!message.empty()) {
-				cout << "Message content:\n" << message << endl;
-			}
-			else {
-				cout << "Failed to read message!" << endl;
-			}
-			break;
-		}
-		case 2: {
-			cout << "Enter the index of the message to delete: " << endl;
-			DWORD index;
-			cin >> index;
+		cout << "Options:\n0: Add a new message.\n1: Read a message.\n2: Read a message and delete it.\n3: Delete a message.\n4: Delete all messages.\n9: Back to main menu.\n" << endl;
+		cout << "Would you like to: ";
 
-			if (client.DeleteMessage(mailboxName, index)) {
-				cout << "Message deleted successfully!" << endl;
-			}
-			else {
-				cout << "Failed to delete message!" << endl;
-			}
-			break;
+		int option = tryParseOption();
+		DWORD index;
+
+		if (option > 0 && option <= 4 && previews.empty()) {
+			cout << "The mailbox is empty!" << endl;
+			continue;
 		}
-		case 3: {
-			if (client.DeleteAllMessages(mailboxName)) {
-				cout << "All messages deleted successfully!" << endl;
+
+		switch (option) {
+			case 0: {
+				cout << "Enter the message body: ";
+				string body;
+				getline(cin, body);
+				if (client.AddMessage(mailboxName, body)) {
+					cout << "Message added successfully!" << endl;
+				}
+				else {
+					cout << "Failed to add the message!" << endl;
+				}
+				break;
 			}
-			else {
-				cout << "Failed to delete all messages!" << endl;
+			case 1: {
+				cout << "Enter the index of the message to read: ";
+				index = tryParseOption();
+
+				string message = client.ReadMessage(mailboxName, index, false);
+				if (!message.empty()) {
+					cout << "Message content:\n" << message << endl;
+				}
+				else {
+					cout << "Failed to read the message!" << endl;
+				}
+				tryParseOption();
+				break;
 			}
-			break;
-		}
-		case 4: {
-			displayMainMenu(client);
-			break;
-		}
-		default: {
-			cout << "Invalid option. Please try again." << endl;
-			break;
+			case 2: {
+				cout << "Enter the index of the message to read and delete thereafter: ";
+				index = tryParseOption();
+
+				string message = client.ReadMessage(mailboxName, index, true);
+				if (!message.empty()) {
+					cout << "Message content:\n" << message << endl;
+					cout << "Message deleted successfully!" << endl;
+				}
+				else {
+					cout << "Failed to read and delete the message!" << endl;
+				}
+				tryParseOption();
+				break;
+			}
+			case 3: {
+				cout << "Enter the index of the message to delete: ";
+				index = tryParseOption();
+
+				if (client.DeleteMessage(mailboxName, index)) {
+					cout << "Message deleted successfully!" << endl;
+				}
+				else {
+					cout << "Failed to delete message!" << endl;
+				}
+				break;
+			}
+			case 4: {
+				if (client.DeleteAllMessages(mailboxName)) {
+					cout << "All messages deleted successfully!" << endl;
+				}
+				else {
+					cout << "Failed to delete all messages!" << endl;
+				}
+				break;
+			}
+			case 9: {
+				stayInMailboxMenu = false;
+				break;
+			}
+			default: {
+				cout << "Invalid option. Please try again." << endl;
+				break;
+			}
 		}
 	}
 }
 
-static void displayMainMenu(MailClient& client)
+static bool displayMainMenu(MailClient& client)
 {
 	int mailboxesCount = client.GetTotalMailboxesCount();
 	vector<wstring> mailboxNames = client.GetAllMailboxNames();
 
-	string message = "You have " + to_string(mailboxesCount) + (mailboxesCount == 1 ? " mailbox" : " mailboxes") + " waiting for you.";
-
+	string message = "\nYou have " + to_string(mailboxesCount) + (mailboxesCount == 1 ? " mailbox" : " mailboxes") + " waiting for you.";
 	cout << message << endl;
-	cout << "Would you like to:\n0: Create a new mailbox.\n1: Open an existing mailbox.\n" << endl;
 
-	int option;
+	printMailboxList(mailboxNames);
+	cout << endl;
+
+	message = "Available options: \n0: Create a new mailbox.\n";
+	if (mailboxesCount > 0) {
+		message += "1: Open an existing mailbox.\n";
+	} 
+	message += "9: Exit the application.\n";
+	
+	cout << message;
+	cout << "Would you like to: ";
+
+	int option = tryParseOption();
 	wstring mailboxName;
-	cin >> option;
-	cin.ignore();
 
 	switch (option) {
 		case 0: {
-			cout << "Available mailboxes:" << endl;
-			for(const wstring& name : mailboxNames) {
-				wcout << L"- " << name << endl;
-			}
-			cout << "\nEnter the name of the new mailbox: " << endl;
+			cout << "Enter the name of the new mailbox: ";
 			getline(wcin, mailboxName);
 
 			if (client.CreateMailbox(mailboxName, MAX_MAILBOX_SIZE)) {
@@ -118,11 +190,13 @@ static void displayMainMenu(MailClient& client)
 			break;
 		}
 		case 1: {
-			cout << "Enter the name of the mailbox to open: " << endl;
+			if (mailboxesCount == 0) 
+				break;
+
+			cout << "Enter the name of the mailbox to open: ";
 			getline(wcin, mailboxName);
 
 			if (client.MailboxExists(mailboxName)) {
-				wcout << L"Mailbox '" << mailboxName << L"' opened successfully!" << endl;
 				displayMailboxMenu(client, mailboxName);
 			}
 			else {
@@ -130,17 +204,27 @@ static void displayMainMenu(MailClient& client)
 			}
 			break;
 		}
+		case 9: {
+			return false;
+		}
 		default: {
 			cout << "Invalid option. Please try again." << endl;
 			break;
 		}
 	}
+
+	return true;
 }
 
 int main()
 {
 	displayWelcomeMessage();
-
 	MailClient client(MAILBOX_DIRECTORY);
-	displayMainMenu(client);
+
+	bool isRunning = true;
+	while (isRunning) {
+		isRunning = displayMainMenu(client);
+	}
+
+	cout << "Thank you for using Nova Mail! Take care!" << endl;
 }
