@@ -163,7 +163,7 @@ bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
     }
     wstring filepath = getFilePath(mailboxName);
 
-    HANDLE hFile = CreateFileW(filepath.c_str(), GENERIC_READ|GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile = CreateFileW(filepath.c_str(), GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) 
         return false;
 
@@ -196,12 +196,12 @@ bool MailClient::DeleteMessage(const wstring& mailboxName, DWORD targetIndex)
     meta.totalSize = 0;
     WriteMailboxMeta(hFile, meta);
     SetEndOfFile(hFile);
+    CloseHandle(hFile);
 
     for (const string& message : allMessages) {
         AddMessage(mailboxName, message);
     }
 
-    CloseHandle(hFile);
     return true;
 }
 

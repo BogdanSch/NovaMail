@@ -23,6 +23,15 @@ static int tryParseOption() {
 	return option;
 }
 
+static bool isIndexInRange(int index, int size)
+{
+	if (index < 0 || index >= size) {
+		cout << "Invalid index! Please enter a number between 0 and " << size - 1 << "." << endl;
+		return false;
+	}
+	return true;
+}
+
 static void printMessagePreviews(const vector<string>& previews)
 {
 	if (previews.size() == 0) {
@@ -60,8 +69,7 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 	cout << "\n---------------------------------------\n" << endl;
 	wcout << L"Mailbox '" << mailboxName << L"' opened successfully!";
 
-	bool stayInMailboxMenu = true;
-	while (stayInMailboxMenu) {
+	while (true) {
 		cout << endl;
 		vector<string> previews = client.GetMessagePreviews(mailboxName);
 		printMessagePreviews(previews);
@@ -71,7 +79,7 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 		cout << "Would you like to: ";
 
 		int option = tryParseOption();
-		DWORD index;
+		int index;
 
 		if (option > 0 && option <= 4 && previews.empty()) {
 			cout << "The mailbox is empty!" << endl;
@@ -83,6 +91,7 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 				cout << "Enter the message body: ";
 				string body;
 				getline(cin, body);
+
 				if (client.AddMessage(mailboxName, body)) {
 					cout << "Message added successfully!" << endl;
 				}
@@ -94,6 +103,9 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 			case 1: {
 				cout << "Enter the index of the message to read: ";
 				index = tryParseOption();
+				if (!isIndexInRange(index, previews.size())) {
+					break;
+				}
 
 				string message = client.ReadMessage(mailboxName, index, false);
 				if (!message.empty()) {
@@ -102,12 +114,18 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 				else {
 					cout << "Failed to read the message!" << endl;
 				}
-				tryParseOption();
+
+				cout << "\nPress Enter to continue...";
+				cin.get();
+
 				break;
 			}
 			case 2: {
 				cout << "Enter the index of the message to read and delete thereafter: ";
 				index = tryParseOption();
+				if (!isIndexInRange(index, previews.size())) {
+					break;
+				}
 
 				string message = client.ReadMessage(mailboxName, index, true);
 				if (!message.empty()) {
@@ -117,12 +135,16 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 				else {
 					cout << "Failed to read and delete the message!" << endl;
 				}
-				tryParseOption();
+				cout << "\nPress Enter to continue...";
+				cin.get();
 				break;
 			}
 			case 3: {
 				cout << "Enter the index of the message to delete: ";
 				index = tryParseOption();
+				if (!isIndexInRange(index, previews.size())) {
+					break;
+				}
 
 				if (client.DeleteMessage(mailboxName, index)) {
 					cout << "Message deleted successfully!" << endl;
@@ -141,10 +163,8 @@ static void displayMailboxMenu(MailClient& client, const wstring& mailboxName)
 				}
 				break;
 			}
-			case 9: {
-				stayInMailboxMenu = false;
-				break;
-			}
+			case 9: 
+				return;
 			default: {
 				cout << "Invalid option. Please try again." << endl;
 				break;
